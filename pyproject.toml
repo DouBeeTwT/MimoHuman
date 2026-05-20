@@ -53,8 +53,8 @@ all = [
 mimohuman = "mimohuman.tui.app:main"
 
 [project.urls]
-Homepage = "https://github.com/example/mimohuman"
-Repository = "https://github.com/example/mimohuman.git"
+Homepage = "https://github.com/DouBeeTwT/MimoHuman"
+Repository = "https://github.com/DouBeeTwT/MimoHuman.git"
 
 [tool.ruff]
 line-length = 100
