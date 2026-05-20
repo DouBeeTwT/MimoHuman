@@ -47,6 +47,7 @@ class OpenAIProvider(LLMProvider):
             "max_tokens": kwargs.get("max_tokens", 4096),
             "temperature": kwargs.get("temperature", 0.7),
             "stream": True,
+            "stream_options": {"include_usage": True},
         }
 
         if tools:
@@ -57,8 +58,16 @@ class OpenAIProvider(LLMProvider):
 
             current_tool_id: str | None = None
             current_tool_name: str | None = None
+            usage_data: dict[str, int] = {}
 
             async for chunk in stream:
+                if chunk.usage:
+                    usage_data = {
+                        "input_tokens": getattr(chunk.usage, "prompt_tokens", 0) or 0,
+                        "output_tokens": getattr(chunk.usage, "completion_tokens", 0) or 0,
+                    }
+                    continue
+
                 delta = chunk.choices[0].delta if chunk.choices else None
                 if delta is None:
                     continue
@@ -97,7 +106,8 @@ class OpenAIProvider(LLMProvider):
                         )
                         current_tool_id = None
                         current_tool_name = None
-                    yield StreamEvent(type=StreamEventType.DONE, data={})
+
+            yield StreamEvent(type=StreamEventType.DONE, data=usage_data)
 
         except Exception as e:
             error_msg = str(e)

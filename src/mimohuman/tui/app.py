@@ -36,7 +36,6 @@ Screen {
 }
 
 #input-bar {
-    dock: bottom;
     height: 3;
     padding: 0 1;
     background: $panel;
@@ -76,6 +75,13 @@ Screen {
 
 .error-message {
     color: $error;
+}
+
+#response-status-bar {
+    height: 1;
+    padding: 0 2;
+    background: $panel;
+    color: $text-muted;
 }
 
 #help-title {

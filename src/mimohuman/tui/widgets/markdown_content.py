@@ -4,14 +4,10 @@ from textual.widgets import Static
 
 
 class MarkdownContent(Static):
-    """Renders markdown content.
+    """Renders markdown content using Rich's Markdown renderable."""
 
-    Uses Rich's Markdown renderable under the hood.
-    For now, displays text directly; markdown rendering is a TODO.
-    """
-
-    def __init__(self, content: str = "", role: str = "assistant") -> None:
-        super().__init__("")
+    def __init__(self, content: str = "", role: str = "assistant", **kwargs) -> None:
+        super().__init__("", **kwargs)
         self._role = role
         self.set_content(content)
 

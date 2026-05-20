@@ -16,6 +16,14 @@ class MockProvider(LLMProvider):
     def __init__(self, config: ProviderConfig | None = None) -> None:
         super().__init__(config or ProviderConfig(default_model="mock"))
 
+    def __init__(
+        self,
+        config: ProviderConfig | None = None,
+        usage: dict[str, int] | None = None,
+    ) -> None:
+        super().__init__(config or ProviderConfig(default_model="mock"))
+        self._usage = usage or {}
+
     async def stream(
         self,
         messages: list[Message],
@@ -27,7 +35,7 @@ class MockProvider(LLMProvider):
             type=StreamEventType.TEXT_DELTA,
             data={"delta": "Hello from mock!"},
         )
-        yield StreamEvent(type=StreamEventType.DONE, data={})
+        yield StreamEvent(type=StreamEventType.DONE, data=dict(self._usage))
 
     async def complete(
         self,
@@ -88,3 +96,21 @@ async def test_agent_run_yields_events(agent: Agent) -> None:
     assert StreamEventType.AGENT_START in event_types
     assert StreamEventType.TEXT_DELTA in event_types
     assert StreamEventType.AGENT_END in event_types
+
+
+@pytest.mark.asyncio
+async def test_agent_run_includes_usage_metrics() -> None:
+    provider = MockProvider(usage={"input_tokens": 50, "output_tokens": 20})
+    config = AgentConfig(name="MetricsAgent", system_prompt="Test.", model="mock")
+    agent = Agent(config=config, provider=provider)
+
+    events = []
+    async for event in agent.run("Hi"):
+        events.append(event)
+
+    ag_end = next(e for e in events if e.type == StreamEventType.AGENT_END)
+    assert ag_end.data["input_tokens"] == 50
+    assert ag_end.data["output_tokens"] == 20
+    assert ag_end.data["duration_ms"] > 0
+    assert ag_end.data["agent"] == "MetricsAgent"
+    assert ag_end.data["rounds"] == 1

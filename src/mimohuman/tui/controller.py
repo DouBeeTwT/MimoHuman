@@ -5,6 +5,7 @@ Widgets and screens receive data through this controller or via Textual messages
 """
 
 import os
+from pathlib import Path
 
 from mimohuman.core.agent import Agent, AgentConfig
 from mimohuman.core.config import MimoConfig
@@ -17,6 +18,14 @@ from mimohuman.core.provider_registry import (
     get_provider_entry,
 )
 from mimohuman.core.tool import ToolRegistry
+
+
+def _load_soul_prompt() -> str:
+    """Load the Pro model system prompt from prompts/soul.md."""
+    prompt_path = Path(__file__).parent.parent.parent.parent / "prompts" / "soul.md"
+    if prompt_path.exists():
+        return prompt_path.read_text(encoding="utf-8")
+    return "You are a helpful AI assistant."
 
 
 def _resolve_api_key(entry: ProviderEntry, override: str | None = None) -> str:
@@ -55,7 +64,7 @@ def _build_agent(
 
     agent_config = AgentConfig(
         name="MimoHuman",
-        system_prompt="You are a helpful AI assistant.",
+        system_prompt=_load_soul_prompt(),
         model=model_name,
     )
     return Agent(
@@ -215,8 +224,7 @@ class TUIController:
     # ── chat flow ────────────────────────────────────────────────
 
     async def send_message(self, text: str):
-        agent = self._flash_agent or self._agent
-        async for event in agent.run(text, self._conversation):
+        async for event in self._agent.run(text, self._conversation):
             yield event
 
     def get_conversation(self) -> Conversation:
@@ -228,6 +236,10 @@ class TUIController:
     @property
     def agent(self) -> Agent:
         return self._agent
+
+    @property
+    def flash_agent(self) -> Agent | None:
+        return self._flash_agent
 
     @property
     def tool_registry(self) -> ToolRegistry:

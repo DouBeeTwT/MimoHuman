@@ -3,14 +3,11 @@
 from textual.containers import VerticalScroll
 from textual.widgets import Static
 
+from mimohuman.tui.widgets.markdown_content import MarkdownContent
+
 
 class ChatView(VerticalScroll):
-    """Scrollable container that displays chat messages.
-
-    Messages are added as child widgets. In a full implementation,
-    each message would be a composite widget with role-colored borders,
-    markdown body, and expandable tool/thinking sections.
-    """
+    """Scrollable container that displays chat messages."""
 
     def __init__(self) -> None:
         super().__init__(id="chat-view")
@@ -25,20 +22,20 @@ class ChatView(VerticalScroll):
         self.scroll_end(animate=False)
 
     def add_assistant_message(self, text: str) -> None:
-        """Display a complete assistant message."""
+        """Display a complete assistant message with markdown rendering."""
         self._message_count += 1
         self.mount(
-            Static(text, classes="chat-message assistant-message")
+            MarkdownContent(text, role="assistant", classes="chat-message assistant-message")
         )
         self.scroll_end(animate=False)
 
-    def begin_streaming(self) -> Static:
-        """Create a placeholder widget for a streaming assistant response.
+    def begin_streaming(self) -> MarkdownContent:
+        """Create a markdown widget for a streaming assistant response.
 
-        Returns the widget so the caller can call .update() on each delta.
+        Returns the widget so the caller can call .set_content() on each delta.
         """
         self._message_count += 1
-        widget = Static("", classes="chat-message assistant-message")
+        widget = MarkdownContent("", role="assistant", classes="chat-message assistant-message")
         self.mount(widget)
         self.scroll_end(animate=False)
         return widget

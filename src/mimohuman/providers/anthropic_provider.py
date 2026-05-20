@@ -112,13 +112,23 @@ class AnthropicProvider(LLMProvider):
                             current_tool_name = None
 
                     elif event.type == "message_stop":
-                        yield StreamEvent(type=StreamEventType.DONE, data={})
+                        pass  # usage captured after stream ends
 
                     elif event.type == "error":
                         yield StreamEvent(
                             type=StreamEventType.ERROR,
                             data={"message": str(event.error)},
                         )
+
+                usage_data: dict[str, int] = {}
+                if hasattr(stream, "message") and stream.message is not None:
+                    usage = getattr(stream.message, "usage", None)
+                    if usage is not None:
+                        usage_data = {
+                            "input_tokens": getattr(usage, "input_tokens", 0) or 0,
+                            "output_tokens": getattr(usage, "output_tokens", 0) or 0,
+                        }
+                yield StreamEvent(type=StreamEventType.DONE, data=usage_data)
 
         except Exception as e:
             error_msg = str(e)

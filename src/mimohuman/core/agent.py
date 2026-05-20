@@ -5,6 +5,7 @@ the canonical agent loop: call LLM -> execute tools -> repeat.
 """
 
 import json
+import time
 from typing import Any, AsyncGenerator
 
 from pydantic import BaseModel, Field
@@ -67,6 +68,9 @@ class Agent:
         orchestrator) can observe progress in real time.
         """
         conv = conversation or Conversation()
+        start_time = time.monotonic()
+        total_input_tokens = 0
+        total_output_tokens = 0
 
         # AGENT_START hook
         ctx = HookContext(
@@ -156,6 +160,10 @@ class Agent:
 
                 yield event
 
+                if event.type == StreamEventType.DONE:
+                    total_input_tokens += event.data.get("input_tokens", 0)
+                    total_output_tokens += event.data.get("output_tokens", 0)
+
             # Build assistant message
             content = "".join(content_parts)
             assistant_msg = AssistantMessage(
@@ -237,9 +245,16 @@ class Agent:
                 f"({self.config.max_tool_rounds})"
             )
 
+        duration_ms = (time.monotonic() - start_time) * 1000
         yield StreamEvent(
             type=StreamEventType.AGENT_END,
-            data={"agent": self.config.name, "rounds": round_count},
+            data={
+                "agent": self.config.name,
+                "rounds": round_count,
+                "input_tokens": total_input_tokens,
+                "output_tokens": total_output_tokens,
+                "duration_ms": duration_ms,
+            },
         )
 
         # AGENT_END hook
