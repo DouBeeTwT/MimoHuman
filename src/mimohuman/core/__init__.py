@@ -1,7 +1,7 @@
 """Core framework abstractions for MimoHuman."""
 
 from mimohuman.core.agent import Agent, AgentConfig
-from mimohuman.core.confusion import ConfusionEvaluator
+from mimohuman.core.confusion import ConfusionEvaluator, InputClassification, InputType
 from mimohuman.core.conversation import Conversation
 from mimohuman.core.exceptions import MimoHumanError
 from mimohuman.core.hooks import HookContext, HookManager, HookPoint
@@ -24,6 +24,8 @@ __all__ = [
     "MimoHumanError",
     # Confusion
     "ConfusionEvaluator",
+    "InputClassification",
+    "InputType",
     # Messages
     "Message",
     "MessageRole",

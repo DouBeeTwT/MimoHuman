@@ -7,7 +7,6 @@ from textual.app import ComposeResult
 from textual.screen import Screen
 from textual.widgets import Footer
 
-from mimohuman.core.confusion import ConfusionEvaluator
 from mimohuman.core.provider import StreamEventType
 from mimohuman.tui.controller import TUIController
 from mimohuman.tui.widgets.agent_status import AgentStatus
@@ -81,9 +80,20 @@ class ChatScreen(Screen):
         self.run_worker(self._stream_response(text), exclusive=True)
 
     async def _stream_response(self, text: str) -> None:
-        """Stream the agent response in a background worker."""
+        """Stream the agent response in a background worker.
+
+        Two-phase confusion evaluation:
+        Phase 1: classify user input before Pro model responds
+        Phase 2: compute confusion score after Pro model responds
+        """
         chat_view = self.query_one(ChatView)
         status = self.query_one(AgentStatus)
+        status_bar = self.query_one("#response-status-bar", ResponseStatusBar)
+
+        # Phase 1: Classify user input via Flash model
+        evaluator = self.controller.evaluator
+        if evaluator:
+            await evaluator.classify_input(text)
 
         current_response = ""
         stream_widget = None
@@ -132,7 +142,7 @@ class ChatScreen(Screen):
                 status="idle",
             )
 
-        # After streaming completes, update the fixed response status bar
+        # After streaming completes, update metrics and compute confusion
         if current_response and duration_ms > 0:
             try:
                 duration_s = duration_ms / 1000
@@ -150,30 +160,15 @@ class ChatScreen(Screen):
                     total_chars = sum(len(m.content) for m in conv.messages)
                     input_tokens = total_chars // 4
 
-                status_bar = self.query_one("#response-status-bar", ResponseStatusBar)
-                status_bar.update_metrics(speed=speed, ctx_tokens=input_tokens, cfs="...")
+                # Phase 2: Compute confusion score
+                cfs_str = "..."
+                if evaluator:
+                    cfs = await evaluator.compute(current_response, output_tokens)
+                    cfs_str = f"{cfs * 100:.1f}%"
 
-                # Launch confusion evaluation in background
-                self._compute_confusion()
+                status_bar.update_metrics(speed=speed, ctx_tokens=input_tokens, cfs=cfs_str)
             except Exception:
                 pass
-
-    def _compute_confusion(self) -> None:
-        """Evaluate remaining user confusion using the Flash model in a background worker."""
-        flash_agent = self.controller.flash_agent
-        status_bar = self.query_one("#response-status-bar", ResponseStatusBar)
-        if flash_agent is None:
-            status_bar.set_cfs(None)
-            return
-
-        conv_messages = self.controller.get_conversation().get_messages()
-
-        async def _run() -> None:
-            evaluator = ConfusionEvaluator(flash_agent.provider)
-            result = await evaluator.evaluate(conv_messages)
-            status_bar.set_cfs(result)
-
-        self.run_worker(_run(), exclusive=False)
 
     def _handle_command(self, text: str) -> None:
         """Handle slash commands."""

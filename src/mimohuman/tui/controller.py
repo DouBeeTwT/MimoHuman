@@ -8,6 +8,7 @@ import os
 from pathlib import Path
 
 from mimohuman.core.agent import Agent, AgentConfig
+from mimohuman.core.confusion import ConfusionEvaluator
 from mimohuman.core.config import MimoConfig
 from mimohuman.core.conversation import Conversation
 from mimohuman.core.provider import LLMProvider, ProviderConfig
@@ -92,6 +93,7 @@ class TUIController:
     ) -> None:
         self._agent = agent
         self._flash_agent: Agent | None = None
+        self._evaluator: ConfusionEvaluator | None = None
         self._conversation = Conversation()
         self._config = config or MimoConfig()
 
@@ -181,6 +183,7 @@ class TUIController:
         entry = get_provider_entry(self._flash_provider)
         if entry is None:
             self._flash_agent = None
+            self._evaluator = None
             return
         self._flash_agent = _build_agent(
             entry,
@@ -189,6 +192,7 @@ class TUIController:
             api_key_override=self._config.get_key(self._flash_provider) or None,
             tool_registry=self._agent.tool_registry if self._agent else ToolRegistry(),
         )
+        self._evaluator = ConfusionEvaluator(self._flash_agent.provider)
 
     # ── display helpers ──────────────────────────────────────────
 
@@ -232,6 +236,10 @@ class TUIController:
 
     def clear_conversation(self) -> None:
         self._conversation.clear()
+        if self._evaluator:
+            self._evaluator._confusion = 1.0
+            self._evaluator._last_followup_level = None
+            self._evaluator._last_topic = None
 
     @property
     def agent(self) -> Agent:
@@ -240,6 +248,10 @@ class TUIController:
     @property
     def flash_agent(self) -> Agent | None:
         return self._flash_agent
+
+    @property
+    def evaluator(self) -> ConfusionEvaluator | None:
+        return self._evaluator
 
     @property
     def tool_registry(self) -> ToolRegistry:
